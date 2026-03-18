@@ -725,32 +725,38 @@ function colToIndex(col) {
   return result - 1; // 0-based
 }
 
+// ── Helpers bilingues FR / EN ──
+function getTask(r)    { return (r['Tâche'] || r['Task'] || '').toUpperCase(); }
+function getAptCleaning(r) { return (r['Notes externes'] || r['External notes'] || r['Nom de la location'] || r['Rental Name'] || r['Rental'] || '').trim(); }
+function getAptCheckin(r)  { return (r['Nom de la location'] || r['Rental Name'] || r['Rental'] || '').trim(); }
+function getTimeCleaning(r){ return r['Jour'] || r['Date'] || r['Time'] || r['Temps'] || ''; }
+function getTimeCheckin(r) { return r['Temps'] || r['Time'] || r['Estimated Landing time'] || ''; }
+function getAgent(r)   { return r['Email vérifié'] || r['Verified email'] || r['Agent'] || r['Staff'] || r['Email'] || ''; }
+function getNotesCleaning(r){ return r['Notes pour plus propre'] || r['Notes for cleaner'] || r['Remarques'] || r['Notes'] || ''; }
+function getNotesCheckin(r) { return r['Notes pour le ménage'] || r['Notes for cleaner'] || r['Notes pour plus propre'] || r['Remarques'] || r['Notes'] || ''; }
+
 function generateDashboard() {
-  // Detect which file is cleaning vs checkin by Tâche column
-  let cleanings = dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
-  let checkins = dataCheckin.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
+  // Detect which file is cleaning vs checkin — supporte FR (Tâche) et EN (Task)
+  let cleanings = dataCleaning.filter(r => getTask(r) === 'CLEANING');
+  let checkins = dataCheckin.filter(r => getTask(r) === 'CHECKIN');
 
   // If reversed, swap
-  if(cleanings.length === 0 && dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN').length > 0) {
+  if(cleanings.length === 0 && dataCleaning.filter(r => getTask(r) === 'CHECKIN').length > 0) {
     [dataCheckin, dataCleaning] = [dataCleaning, dataCheckin];
-    cleanings = dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
-    checkins = dataCheckin.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
+    cleanings = dataCleaning.filter(r => getTask(r) === 'CLEANING');
+    checkins = dataCheckin.filter(r => getTask(r) === 'CHECKIN');
   }
   // Also catch if mixed in same file
-  if(checkins.length === 0) checkins = [...dataCheckin, ...dataCleaning].filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
-  if(cleanings.length === 0) cleanings = [...dataCheckin, ...dataCleaning].filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
+  if(checkins.length === 0) checkins = [...dataCheckin, ...dataCleaning].filter(r => getTask(r) === 'CHECKIN');
+  if(cleanings.length === 0) cleanings = [...dataCheckin, ...dataCleaning].filter(r => getTask(r) === 'CLEANING');
 
   // Build sets of apt names for cross-detection
-  // Cleaning: apt name is in 'Notes externes' (col I for cleaning rows)
-  // Checkin: apt name is in 'Nom de la location' (col J)
-  const cleaningApts = new Set(cleanings.map(r => (r['Notes externes'] || r['Nom de la location'] || '').trim().toUpperCase()).filter(Boolean));
-  const checkinApts  = new Set(checkins.map(r => (r['Nom de la location'] || '').trim().toUpperCase()).filter(Boolean));
+  const cleaningApts = new Set(cleanings.map(r => getAptCleaning(r).toUpperCase()).filter(Boolean));
+  const checkinApts  = new Set(checkins.map(r => getAptCheckin(r).toUpperCase()).filter(Boolean));
 
   // Sort both alphabetically by apartment name
-  const aptKeyCleaning = r => (r['Notes externes'] || r['Nom de la location'] || '').trim().toUpperCase();
-  const aptKeyCheckin  = r => (r['Nom de la location'] || '').trim().toUpperCase();
-  cleanings.sort((a,b) => aptKeyCleaning(a).localeCompare(aptKeyCleaning(b), 'fr'));
-  checkins.sort((a,b) => aptKeyCheckin(a).localeCompare(aptKeyCheckin(b), 'fr'));
+  cleanings.sort((a,b) => getAptCleaning(a).localeCompare(getAptCleaning(b), 'fr'));
+  checkins.sort((a,b) => getAptCheckin(a).localeCompare(getAptCheckin(b), 'fr'));
 
   // Determine date
   const today = new Date();
@@ -761,15 +767,15 @@ function generateDashboard() {
   const tbodyCleaning = document.getElementById('body-cleaning');
   tbodyCleaning.innerHTML = '';
   cleanings.forEach((row, i) => {
-    const apt   = (row['Notes externes'] || row['Nom de la location'] || '').trim();
-    const time  = row['Jour'] || '';
-    const agent = row['Email vérifié'] || '';
-    const notes = row['Temps'] || row['Notes pour plus propre'] || row['Remarques'] || '';
+    const apt   = getAptCleaning(row);
+    const time  = getTimeCleaning(row);
+    const agent = getAgent(row);
+    const notes = getNotesCleaning(row);
     const hasCheckin = checkinApts.has(apt.toUpperCase());
     const aptNum = apt.match(/\d+/)?.[0] || '';
     const insp = matchInspection(inspectionMap, apt, aptNum);
-    const matchedCheckin = checkins.find(c => (c['Nom de la location']||'').trim().toUpperCase() === apt.toUpperCase());
-    const checkinTime = matchedCheckin ? (matchedCheckin['Temps'] || '') : '';
+    const matchedCheckin = checkins.find(c => getAptCheckin(c).toUpperCase() === apt.toUpperCase());
+    const checkinTime = matchedCheckin ? getTimeCheckin(matchedCheckin) : '';
     const isLate = hasCheckin && time && checkinTime && timeToMinutes(time) >= timeToMinutes(checkinTime);
 
     const id = 'cleaning_' + i;
@@ -800,9 +806,9 @@ function generateDashboard() {
   const tbodyCheckin = document.getElementById('body-checkin');
   tbodyCheckin.innerHTML = '';
   checkins.forEach((row, i) => {
-    const apt    = (row['Nom de la location'] || '').trim();
-    const time   = row['Temps'] || '';
-    const notes  = row['Notes pour le ménage'] || row['Notes pour plus propre'] || row['Remarques'] || '';
+    const apt    = getAptCheckin(row);
+    const time   = getTimeCheckin(row);
+    const notes  = getNotesCheckin(row);
     const hasCleaning = cleaningApts.has(apt.toUpperCase());
     const aptNum = apt.match(/\d+/)?.[0] || '';
     const insp = matchInspection(inspectionMap, apt, aptNum);
