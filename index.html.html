@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUVE — Planning Journalier</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a18;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c8401a;
+    --gold: #b8952a;
+    --muted: #8a8478;
+    --checkin-bg: #eef4f0;
+    --checkin-border: #3a7a52;
+    --cleaning-bg: #f4f0ea;
+    --cleaning-border: #b8952a;
+    --done-bg: #e8e4da;
+    --done-text: #a0998a;
+    --inspected-border: #2d6e47;
+    --inspected-badge: #1e5c38;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── UPLOAD SCREEN ── */
+  #upload-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    gap: 2rem;
+  }
+
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 3rem;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-align: center;
+  }
+  .logo span { color: var(--accent); font-style: italic; }
+
+  .subtitle {
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--muted);
+    border-radius: 4px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--cream);
+  }
+  .upload-zone:hover { border-color: var(--ink); background: #ece6d8; }
+  .upload-zone.loaded { border-style: solid; border-color: var(--checkin-border); }
+  .upload-zone.loaded.cleaning-zone { border-color: var(--cleaning-border); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+
+  .zone-icon { font-size: 1.8rem; margin-bottom: 0.6rem; }
+  .zone-label {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .zone-sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .zone-filename { font-size: 0.72rem; color: var(--checkin-border); margin-top: 0.5rem; font-style: italic; }
+  .cleaning-zone .zone-filename { color: var(--cleaning-border); }
+
+  .btn-generate {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 0.9rem 2.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .btn-generate.active { opacity: 1; pointer-events: all; }
+  .btn-generate.active:hover { background: var(--accent); }
+
+  /* ── DASHBOARD ── */
+  #dashboard { display: none; }
+
+  .top-bar {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .top-bar-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+  }
+  .top-bar-title span { font-style: italic; color: #d4a882; }
+
+  .top-bar-date {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #a09888;
+  }
+
+  .top-bar-actions { display: flex; gap: 0.75rem; }
+  .btn-action {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    color: var(--paper);
+    padding: 0.45rem 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .btn-action:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.5); }
+  .btn-action.reset { border-color: rgba(200,64,26,0.5); color: #e88; }
+  .btn-action.reset:hover { background: rgba(200,64,26,0.2); }
+  .btn-action.archive { border-color: rgba(184,149,42,0.6); color: #d4b85a; }
+  .btn-action.archive:hover { background: rgba(184,149,42,0.15); }
+  .btn-action.archive:hover { background: rgba(184,149,42,0.15); }
+  .btn-action.reset:hover { background: rgba(200,64,26,0.2); }
+
+  /* Stats bar */
+  .stats-bar {
+    background: var(--cream);
+    border-bottom: 1px solid #d8d0c0;
+    padding: 0.75rem 2rem;
+    display: flex;
+    gap: 2rem;
+  }
+  .stat { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .stat-dot.green { background: var(--checkin-border); }
+  .stat-dot.gold { background: var(--gold); }
+  .stat-count { font-weight: 500; }
+  .stat-label { color: var(--muted); }
+  .stat-progress { font-size: 0.7rem; color: var(--muted); }
+
+  /* Main content */
+  .content { padding: 1.5rem 2rem; max-width: 1400px; }
+  /* Accordion suivi */
+  .suivi-accordion {
+    margin-top: 1.5rem;
+    border: 1.5px solid #d8d0c0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .suivi-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.1rem;
+    background: var(--cream);
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid #d8d0c0;
+    transition: background 0.15s;
+  }
+  .suivi-accordion-header:hover { background: #e8e2d6; }
+  .suivi-accordion-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .suivi-accordion-count {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .suivi-chevron {
+    font-size: 0.75rem;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .suivi-chevron.open { transform: rotate(180deg); }
+  .suivi-accordion-body {
+    display: none;
+    background: var(--paper);
+    padding: 0 1.1rem;
+  }
+  .suivi-accordion-body.open { display: block; }
+
+  tbody tr.suivi-row { background: #e8e4da !important; }
+  tbody tr.suivi-row td { color: var(--done-text) !important; text-decoration: none !important; }
+  tbody tr.suivi-row .check-box { background: #8a8478; border-color: #8a8478; }
+  tbody tr.suivi-row .check-box::after { content: '✓'; color: white; font-size: 0.75rem; line-height: 1; }
+  tbody tr.suivi-row .apt-tag { opacity: 0.5 !important; filter: grayscale(0.4) !important; }
+  tbody tr.suivi-row:hover { background: #dedad0 !important; }
+
+  .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
+  @media (max-width: 900px) { .tables-grid { grid-template-columns: 1fr; } }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid;
+  }
+  .section-header.checkin { border-color: var(--checkin-border); }
+  .section-header.cleaning { border-color: var(--gold); }
+
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+  }
+  .section-count {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; }
+  thead tr {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid #d8d0c0;
+  }
+  thead th { padding: 0.4rem 0.75rem 0.4rem 0; text-align: left; font-weight: 500; }
+
+  tbody tr {
+    border-bottom: 1px solid #e8e0d0;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  tbody tr:hover { background: #ece6dc; }
+  tbody tr.done { background: #e0ddd6 !important; opacity: 0.7; }
+  tbody tr.done td { color: var(--done-text); text-decoration: none; }
+  tbody tr.done .apt-tag { opacity: 0.45; filter: grayscale(0.5); }
+  tbody tr.done .badge-flag { opacity: 0.5; }
+  tbody tr.done .check-box { background: #8a8478; border-color: #8a8478; }
+  tbody tr.done .check-box::after { content: '✓'; color: white; font-size: 0.75rem; line-height: 1; }
+  tbody tr.done:hover { background: #d8d5ce !important; }
+
+  tbody td { padding: 0.65rem 0.75rem 0.65rem 0; font-size: 0.78rem; vertical-align: middle; }
+
+  .check-col { width: 36px; }
+  .check-box {
+    width: 18px; height: 18px;
+    border: 1.5px solid #c0b8a8;
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .apt-tag {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+  .cleaning .apt-tag { background: var(--gold); }
+
+  .time-chip {
+    background: transparent;
+    border: 1px solid #d0c8b8;
+    padding: 0.1rem 0.45rem;
+    border-radius: 2px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .cleaning .time-chip { border-color: #d4b85a; color: var(--gold); }
+  .checkin-row .time-chip { border-color: #7ab08a; color: var(--checkin-border); }
+
+  .notes-cell { font-size: 0.72rem; color: var(--muted); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Highlight rows ── */
+  tbody tr.libre-propre { background: #fdf6e3; }
+  tbody tr.libre-propre:hover { background: #faefd4; }
+  tbody tr.libre-propre .time-chip { border-color: #d4920a; color: #b07a08; }
+  tbody tr.libre-propre .apt-tag { background: #d4920a; }
+
+  tbody tr.no-checkin { background: #fdf6e3; }
+  tbody tr.no-checkin:hover { background: #faefd4; }
+  tbody tr.no-checkin .time-chip { border-color: #d4920a; color: #b07a08; }
+  tbody tr.no-checkin .apt-tag { background: #d4920a; }
+
+  /* Badge flags */
+  .badge-flag {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 2px;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .badge-flag.orange { background: #faeacb; color: #9a6a00; border: 1px solid #d4920a; }
+  .badge-flag.red    { background: #fbd9d7; color: #9a2016; border: 1px solid #c0392b; }
+
+  /* PRINT styles */
+  @media print {
+    #upload-screen { display: none !important; }
+    #dashboard { display: block !important; }
+    .top-bar-actions { display: none; }
+    .btn-action { display: none; }
+    body { background: white; }
+    .top-bar { background: #1a1a18 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .apt-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .stats-bar { background: #ede8dc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tbody tr { page-break-inside: avoid; }
+    .content { padding: 1rem; }
+  }
+
+  tbody tr.late-cleaning { background: #fdecea !important; }
+  tbody tr.late-cleaning:hover { background: #fbd9d7 !important; }
+  tbody tr.inspected { background: #eef6f1 !important; border-left: 3px solid #2d6e47; }
+  tbody tr.inspected:hover { background: #e4f0e9 !important; }
+  tbody tr.inspected .apt-tag { background: #1e5c38; }
+  tbody tr.inspected td { text-decoration: none !important; color: var(--ink) !important; }
+  .badge-flag.green  { background: #dff0e8; color: #1e5c38; border: 1px solid #2d6e47; }
+  .badge-flag.alert  { background: #fdecea; color: #9a2016; border: 1px solid #c0392b; }
+  .check-box.insp-only { border-color: #d0c8b8; cursor: default; background: transparent; }
+  .check-box.insp-only.inspected-check { border-color: #2d6e47; background: #eef6f1; }
+  .inspection-info { font-size: 0.7rem; color: #1e5c38; display: flex; flex-direction: column; gap: 0.15rem; }
+  .inspection-info .gov-name { font-weight: 500; }
+  .inspection-info .insp-time { color: var(--muted); font-size: 0.65rem; }
+  @keyframes inspectedFlash { 0% { background: #b8e0c8; } 100% { background: #eef6f1; } }
+  tbody tr.inspected.new-inspection { animation: inspectedFlash 1.5s ease forwards; }
+
+  /* Animations */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  tbody tr { animation: slideIn 0.25s ease backwards; }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div>
+    <div class="logo">DUVE <span>Planning</span></div>
+    <div class="subtitle" style="margin-top:0.5rem">Tableau de bord journalier</div>
+  </div>
+
+  <div class="upload-grid">
+    <div class="upload-zone" id="zone-checkin">
+      <input type="file" accept=".xlsx" id="file-checkin" />
+      <div class="zone-icon">🛬</div>
+      <div class="zone-label">Arrivées</div>
+      <div class="zone-sub">Rapport CHECKIN</div>
+      <div class="zone-filename" id="fn-checkin"></div>
+    </div>
+    <div class="upload-zone cleaning-zone" id="zone-cleaning">
+      <input type="file" accept=".xlsx" id="file-cleaning" />
+      <div class="zone-icon">🧹</div>
+      <div class="zone-label">Cleanings</div>
+      <div class="zone-sub">Rapport CLEANING</div>
+      <div class="zone-filename" id="fn-cleaning"></div>
+    </div>
+  </div>
+
+  <button class="btn-generate" id="btn-generate" onclick="generateDashboard()">
+    Générer le planning →
+  </button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="top-bar">
+    <div>
+      <div class="top-bar-title">DUVE <span>Planning</span></div>
+      <div class="top-bar-date" id="bar-date"></div>
+    </div>
+    <div class="top-bar-actions">
+<button class="btn-action archive" onclick="archiveDay()">📦 Archiver la journée</button>
+      <button class="btn-action" onclick="openArchivePanel()" style="border-color:rgba(255,255,255,0.2);">🗂 Voir archives</button>
+      <button class="btn-action" onclick="window.print()">🖨 Imprimer</button>
+      <button class="btn-action reset" onclick="resetApp()">↩ Nouveau fichier</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-dot green"></div>
+      <span class="stat-count" id="stat-checkin-done">0</span><span class="stat-label">/</span><span class="stat-count" id="stat-checkin-total">0</span>
+      <span class="stat-label">arrivées traitées</span>
+    </div>
+    <div class="stat">
+      <div class="stat-dot gold"></div>
+      <span class="stat-count" id="stat-cleaning-done">0</span><span class="stat-label">/</span><span class="stat-count" id="stat-cleaning-total">0</span>
+      <span class="stat-label">ménages effectués</span>
+    </div>
+    <div class="stat">
+      <div class="stat-dot teal" style="background:#2d6e47;"></div>
+      <span class="stat-count" id="stat-inspected">0</span>
+      <span class="stat-label">inspectés</span>
+    </div>
+    <div class="stat" id="stat-all" style="margin-left:auto; display:none;">
+      <span style="color:#3a7a52; font-weight:500; font-size:0.75rem;">✓ Tout est fait !</span>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Légende -->
+    <div style="display:flex; gap:1.5rem; margin-bottom:1.25rem; font-size:0.7rem; color:var(--muted); flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:0.4rem;"><span style="display:inline-block;width:10px;height:10px;background:#eef4f0;border:1.5px solid #3a7a52;border-radius:2px;"></span>Arrivée avec ménage</span>
+      <span style="display:flex;align-items:center;gap:0.4rem;"><span style="display:inline-block;width:10px;height:10px;background:#fdf6e3;border:1.5px solid #d4920a;border-radius:2px;"></span>Libre propre / Sans check-in</span>
+      <span style="display:flex;align-items:center;gap:0.4rem;"><span style="display:inline-block;width:10px;height:10px;background:#fdecea;border:1.5px solid #c0392b;border-radius:2px;"></span>⚠️ Ménage après arrivée</span>
+      <span style="display:flex;align-items:center;gap:0.4rem;"><span style="display:inline-block;width:10px;height:10px;background:#eef6f1;border-left:3px solid #2d6e47;border-radius:2px;"></span>✅ Inspecté</span>
+      <span style="display:flex;align-items:center;gap:0.4rem;"><span style="display:inline-block;width:10px;height:10px;background:#e0ddd6;border:1.5px solid #a0998a;border-radius:2px;"></span>Traité</span>
+    </div>
+    <div class="tables-grid">
+      <div>
+        <div class="section-header cleaning">
+          <div class="section-title">Ménages du jour</div>
+          <div class="section-count" id="cleaning-count"></div>
+        </div>
+        <table id="table-cleaning">
+          <thead>
+            <tr>
+              <th class="check-col"></th>
+              <th>Appartement</th>
+              <th>Heure</th>
+              <th>Agent</th>
+              <th>Notes client</th>
+              <th>Inspection</th>
+            </tr>
+          </thead>
+          <tbody id="body-cleaning"></tbody>
+        </table>
+      </div>
+      <div>
+        <div class="section-header checkin">
+          <div class="section-title">Arrivées du jour</div>
+          <div class="section-count" id="checkin-count"></div>
+        </div>
+        <table id="table-checkin">
+          <thead>
+            <tr>
+              <th class="check-col"></th>
+              <th>Appartement</th>
+              <th>Heure d'arrivée</th>
+              <th>Notes client</th>
+              <th>Inspection</th>
+            </tr>
+          </thead>
+          <tbody id="body-checkin"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUIVI MÉNAGES ACCORDION -->
+    <div class="suivi-accordion" id="suivi-accordion" style="display:none; margin-top:1.5rem;">
+      <div class="suivi-accordion-header" onclick="toggleAccordion()">
+        <div class="suivi-accordion-title">
+          🧹 Tâches en cours / terminées
+          <span class="suivi-accordion-count" id="suivi-count"></span>
+        </div>
+        <span class="suivi-chevron open" id="suivi-chevron">▼</span>
+      </div>
+      <div class="suivi-accordion-body open" id="suivi-accordion-body">
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr style="font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid #d8d0c0;">
+              <th style="width:36px; padding:0.4rem 0;"></th>
+              <th style="padding:0.4rem 0.75rem 0.4rem 0; text-align:left; font-weight:500;">Appartement</th>
+              <th style="padding:0.4rem 0.75rem 0.4rem 0; text-align:left; font-weight:500;">Heure</th>
+              <th style="padding:0.4rem 0.75rem 0.4rem 0; text-align:left; font-weight:500;">Agent</th>
+              <th style="padding:0.4rem 0.75rem 0.4rem 0; text-align:left; font-weight:500;">Notes client</th>
+              <th style="padding:0.4rem 0.75rem 0.4rem 0; text-align:left; font-weight:500;">Inspection</th>
+            </tr>
+          </thead>
+          <tbody id="body-suivi"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(26,26,24,0.85); z-index:3000; align-items:flex-start; justify-content:center; padding:1.5rem; overflow-y:auto;">
+  <div style="background:var(--paper); border-radius:6px; width:100%; max-width:1100px; box-shadow:0 20px 60px rgba(0,0,0,0.4); display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid #d8d0c0; background:var(--ink); border-radius:6px 6px 0 0;">
+      <div id="preview-title" style="font-family:'Fraunces',serif; font-size:1rem; font-weight:300; color:var(--paper);"></div>
+      <button onclick="closePreview()" style="background:none; border:1px solid rgba(255,255,255,0.3); color:var(--paper); font-size:0.75rem; padding:0.3rem 0.75rem; border-radius:3px; cursor:pointer; font-family:'DM Mono',monospace; letter-spacing:0.08em;">✕ Fermer</button>
+    </div>
+    <iframe id="preview-iframe" style="width:100%; height:80vh; border:none; border-radius:0 0 6px 6px;" src="about:blank"></iframe>
+  </div>
+</div>
+
+<!-- ARCHIVE PANEL -->
+<div id="archive-panel" style="display:none; position:fixed; inset:0; background:rgba(26,26,24,0.75); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:var(--paper); border-radius:6px; padding:2rem; max-width:560px; width:90%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.25rem;">
+      <div style="font-family:'Fraunces',serif; font-size:1.4rem; font-weight:600;">📦 Archives</div>
+      <button onclick="closeArchive()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--muted);">✕</button>
+    </div>
+    <div id="archive-list" style="flex:1; overflow-y:auto;">
+      <div id="archive-empty" style="font-size:0.78rem; color:var(--muted); text-align:center; padding:2rem 0;">Aucune archive pour le moment.</div>
+    </div>
+    <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid #d8d0c0; display:flex; justify-content:flex-end; gap:0.75rem;">
+      <button onclick="closeArchive()" style="background:transparent; border:1px solid #d0c8b8; color:var(--muted); padding:0.5rem 1rem; font-family:'DM Mono',monospace; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; border-radius:3px; cursor:pointer;">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- JSZip for reading xlsx as zip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+let dataCheckin = [];
+let dataCleaning = [];
+let dataForms = [];
+let doneState = {};
+let cleaningState = {}; // 0=normal, 1=en cours, 2=terminé
+let knownInspections = new Set();
+let inspectionMap = {};
+
+function timeToMinutes(t) {
+  if(!t) return -1;
+  const parts = t.toString().trim().split(':');
+  if(parts.length < 2) return -1;
+  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+function buildInspectionMap(formsData) {
+  const map = {};
+  for(const row of formsData) {
+    const aptNum = (row["N° d'appartement"] || row["N° appartement"] || row["Appartement"] || '').toString().trim();
+    const residence = (row['Résidence / Hôtel'] || row['Résidence'] || '').trim();
+    const gouvernante = (row['Nom'] || '').trim();
+    const heureDebut = (row['Heure de début'] || row['Heure de soumission'] || '').trim();
+    if(!aptNum) continue;
+    const insp = { aptNum, residence, gouvernante, heureDebut, id: (residence+'_'+aptNum).toLowerCase() };
+    map[aptNum.toLowerCase()] = insp;
+    map[(residence+'_'+aptNum).toLowerCase()] = insp;
+  }
+  return map;
+}
+
+function matchInspection(inspMap, aptName, aptNum) {
+  if(!inspMap || Object.keys(inspMap).length === 0) return null;
+  if(aptNum && inspMap[aptNum.toLowerCase()]) return inspMap[aptNum.toLowerCase()];
+  if(aptName) {
+    const nums = aptName.match(/\d+/g);
+    if(nums) for(const n of nums) if(inspMap[n.toLowerCase()]) return inspMap[n.toLowerCase()];
+    const parts = aptName.trim().split(/\s+/);
+    if(parts.length >= 2) {
+      const combo = (parts[0]+'_'+parts[parts.length-1]).toLowerCase();
+      if(inspMap[combo]) return inspMap[combo];
+    }
+  }
+  return null;
+}
+
+function renderInspectionCell(insp) {
+  if(!insp) return '<span style="color:var(--muted);font-size:0.7rem;">—</span>';
+  let html = '<div class="inspection-info">';
+  if(insp.gouvernante) html += '<span class="gov-name">'+esc(insp.gouvernante)+'</span>';
+  if(insp.heureDebut) html += '<span class="insp-time">'+esc(insp.heureDebut)+'</span>';
+  html += '</div>';
+  return html;
+}
+
+document.getElementById('file-checkin').addEventListener('change', function(e) {
+  if(e.target.files[0]) {
+    document.getElementById('fn-checkin').textContent = e.target.files[0].name;
+    document.getElementById('zone-checkin').classList.add('loaded');
+    readXLSX(e.target.files[0], 'checkin');
+  }
+});
+
+document.getElementById('file-cleaning').addEventListener('change', function(e) {
+  if(e.target.files[0]) {
+    document.getElementById('fn-cleaning').textContent = e.target.files[0].name;
+    document.getElementById('zone-cleaning').classList.add('loaded');
+    readXLSX(e.target.files[0], 'cleaning');
+  }
+});
+
+function checkReady() {
+  const btn = document.getElementById('btn-generate');
+  if(dataCheckin.length > 0 && dataCleaning.length > 0) {
+    btn.classList.add('active');
+  }
+}
+
+// Parse xlsx by reading the XML inside the zip directly
+// This bypasses SheetJS which chokes on DUVE's non-standard column refs like {1, |1, }1
+async function readXLSX(file, type) {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+    const rows = parseSheetXML(sheetXml);
+
+    if(rows.length < 2) { alert('Fichier vide ou non reconnu.'); return; }
+
+    // Row 0 = headers, rest = data
+    const headers = rows[0];
+    const data = rows.slice(1).filter(r => r.some(c => c !== ''));
+    const parsed = data.map((row, idx) => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] !== undefined ? row[i] : ''; });
+      obj._id = type + '_' + idx;
+      return obj;
+    });
+
+    if(type === 'checkin') dataCheckin = parsed;
+    else if(type === 'cleaning') dataCleaning = parsed;
+    else if(type === 'forms') { dataForms = parsed; inspectionMap = buildInspectionMap(dataForms); }
+
+    console.log(`[${type}] Loaded ${parsed.length} rows. Sample:`, parsed[0]);
+    checkReady();
+  } catch(err) {
+    console.error('readXLSX error:', err);
+    alert('Erreur de lecture du fichier : ' + err.message);
+  }
+}
+
+function parseSheetXML(xmlStr) {
+  // Parse using DOMParser — works in all modern browsers
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'application/xml');
+  const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+
+  const rowEls = doc.getElementsByTagNameNS(ns, 'row');
+  const rows = [];
+
+  for(const rowEl of rowEls) {
+    const rowIdx = parseInt(rowEl.getAttribute('r')) - 1; // 0-based
+    const cells = rowEl.getElementsByTagNameNS(ns, 'c');
+    const rowData = [];
+
+    for(const cell of cells) {
+      const ref = cell.getAttribute('r') || '';
+      // Extract only the leading alpha chars for column — handles {, |, } etc.
+      // We use col position from 'r' attr — extract numeric part as row, alpha as col
+      // For non-standard cols (ASCII > Z), we just track order
+      const colLetters = ref.replace(/[^A-Za-z]/g, '');
+      const colIdx = colLetters ? colToIndex(colLetters) : rowData.length;
+
+      const tEl = cell.getElementsByTagNameNS(ns, 't')[0];
+      const val = tEl ? (tEl.textContent || '') : '';
+
+      // Fill sparse array
+      while(rowData.length <= colIdx) rowData.push('');
+      rowData[colIdx] = val;
+    }
+
+    rows[rowIdx] = rowData;
+  }
+
+  // Fill any sparse row gaps
+  return rows.map(r => r || []);
+}
+
+function colToIndex(col) {
+  // Standard A-Z, AA-ZZ conversion
+  // For non-alpha chars (DUVE uses { | } ~ beyond Z), fall back to charCode mapping
+  let result = 0;
+  for(let i = 0; i < col.length; i++) {
+    const c = col.charCodeAt(i);
+    if(c >= 65 && c <= 90) { // A-Z
+      result = result * 26 + (c - 64);
+    } else {
+      // Non-standard: use charCode offset from 'Z'+1
+      result = result * 26 + 26 + (c - 91);
+    }
+  }
+  return result - 1; // 0-based
+}
+
+function generateDashboard() {
+  // Detect which file is cleaning vs checkin by Tâche column
+  let cleanings = dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
+  let checkins = dataCheckin.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
+
+  // If reversed, swap
+  if(cleanings.length === 0 && dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN').length > 0) {
+    [dataCheckin, dataCleaning] = [dataCleaning, dataCheckin];
+    cleanings = dataCleaning.filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
+    checkins = dataCheckin.filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
+  }
+  // Also catch if mixed in same file
+  if(checkins.length === 0) checkins = [...dataCheckin, ...dataCleaning].filter(r => (r['Tâche']||'').toUpperCase() === 'CHECKIN');
+  if(cleanings.length === 0) cleanings = [...dataCheckin, ...dataCleaning].filter(r => (r['Tâche']||'').toUpperCase() === 'CLEANING');
+
+  // Build sets of apt names for cross-detection
+  // Cleaning: apt name is in 'Notes externes' (col I for cleaning rows)
+  // Checkin: apt name is in 'Nom de la location' (col J)
+  const cleaningApts = new Set(cleanings.map(r => (r['Notes externes'] || r['Nom de la location'] || '').trim().toUpperCase()).filter(Boolean));
+  const checkinApts  = new Set(checkins.map(r => (r['Nom de la location'] || '').trim().toUpperCase()).filter(Boolean));
+
+  // Sort both alphabetically by apartment name
+  const aptKeyCleaning = r => (r['Notes externes'] || r['Nom de la location'] || '').trim().toUpperCase();
+  const aptKeyCheckin  = r => (r['Nom de la location'] || '').trim().toUpperCase();
+  cleanings.sort((a,b) => aptKeyCleaning(a).localeCompare(aptKeyCleaning(b), 'fr'));
+  checkins.sort((a,b) => aptKeyCheckin(a).localeCompare(aptKeyCheckin(b), 'fr'));
+
+  // Determine date
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('bar-date').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+  // ── Render CLEANINGS ──
+  const tbodyCleaning = document.getElementById('body-cleaning');
+  tbodyCleaning.innerHTML = '';
+  cleanings.forEach((row, i) => {
+    const apt   = (row['Notes externes'] || row['Nom de la location'] || '').trim();
+    const time  = row['Jour'] || '';
+    const agent = row['Email vérifié'] || '';
+    const notes = row['Temps'] || row['Notes pour plus propre'] || row['Remarques'] || '';
+    const hasCheckin = checkinApts.has(apt.toUpperCase());
+    const aptNum = apt.match(/\d+/)?.[0] || '';
+    const insp = matchInspection(inspectionMap, apt, aptNum);
+    const matchedCheckin = checkins.find(c => (c['Nom de la location']||'').trim().toUpperCase() === apt.toUpperCase());
+    const checkinTime = matchedCheckin ? (matchedCheckin['Temps'] || '') : '';
+    const isLate = hasCheckin && time && checkinTime && timeToMinutes(time) >= timeToMinutes(checkinTime);
+
+    const id = 'cleaning_' + i;
+    const tr = document.createElement('tr');
+    let classes = 'cleaning' + (hasCheckin ? '' : ' no-checkin') + (isLate ? ' late-cleaning' : '');
+    if(insp) { classes += ' inspected'; knownInspections.add(insp.id); }
+    tr.className = classes;
+    tr.dataset.id = id;
+    tr.style.animationDelay = (i * 0.04) + 's';
+    tr.innerHTML = `
+      <td class="check-col"><div class="check-box"></div></td>
+      <td>
+        <span class="apt-tag">${esc(apt)}</span>
+        ${!hasCheckin ? '<span class="badge-flag orange">sans check-in</span>' : ''}
+        ${isLate ? '<span class="badge-flag alert">⚠️ '+esc(time)+' ≥ arrivée '+esc(checkinTime)+'</span>' : ''}
+        ${insp ? '<span class="badge-flag green">✅ inspecté</span>' : ''}
+      </td>
+      <td><span class="time-chip">${esc(time)}</span></td>
+      <td style="font-size:0.78rem;">${esc(agent)}</td>
+      <td class="notes-cell">${esc(notes)}</td>
+      <td>${renderInspectionCell(insp)}</td>
+    `;
+    tr.addEventListener('click', () => toggleDone(id, tr));
+    tbodyCleaning.appendChild(tr);
+  });
+
+  // ── Render CHECKINS ──
+  const tbodyCheckin = document.getElementById('body-checkin');
+  tbodyCheckin.innerHTML = '';
+  checkins.forEach((row, i) => {
+    const apt    = (row['Nom de la location'] || '').trim();
+    const time   = row['Temps'] || '';
+    const notes  = row['Notes pour le ménage'] || row['Notes pour plus propre'] || row['Remarques'] || '';
+    const hasCleaning = cleaningApts.has(apt.toUpperCase());
+    const aptNum = apt.match(/\d+/)?.[0] || '';
+    const insp = matchInspection(inspectionMap, apt, aptNum);
+
+    const id = 'checkin_' + i;
+    const tr = document.createElement('tr');
+    let classes = 'checkin-row' + (hasCleaning ? '' : ' libre-propre');
+    if(insp) classes += ' inspected';
+    tr.className = classes;
+    tr.dataset.id = id;
+    tr.style.animationDelay = (i * 0.04) + 's';
+    tr.innerHTML = `
+      <td class="check-col">
+        <div class="check-box insp-only ${insp ? 'inspected-check' : ''}">
+          ${insp ? '<span style="color:#2d6e47;font-size:1rem;line-height:1;">✓</span>' : ''}
+        </div>
+      </td>
+      <td>
+        <span class="apt-tag">${esc(apt)}</span>
+        ${!hasCleaning ? '<span class="badge-flag orange">libre propre</span>' : ''}
+      </td>
+      <td><span class="time-chip">${esc(time)}</span></td>
+      <td class="notes-cell">${esc(notes)}</td>
+      <td>${renderInspectionCell(insp)}</td>
+    `;
+    tbodyCheckin.appendChild(tr);
+  });
+
+  document.getElementById('cleaning-count').textContent = cleanings.length + ' appartement' + (cleanings.length > 1 ? 's' : '');
+  document.getElementById('checkin-count').textContent = checkins.length + ' arrivée' + (checkins.length > 1 ? 's' : '');
+  document.getElementById('stat-checkin-total').textContent = checkins.length;
+  document.getElementById('stat-cleaning-total').textContent = cleanings.length;
+
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  updateStats();
+}
+
+function toggleDone(id, tr) {
+  if(id.startsWith('cleaning_')) {
+    const inSuivi = tr.classList.contains('suivi-row');
+    const bodyMain  = document.getElementById('body-cleaning');
+    const bodySuivi = document.getElementById('body-suivi');
+    if(tr.parentNode) tr.parentNode.removeChild(tr);
+    if(inSuivi) {
+      // Retour dans le tableau principal en ordre original
+      tr.classList.remove('suivi-row', 'done');
+      const allRows = [...bodyMain.querySelectorAll('tr')];
+      const origIdx = parseInt(id.split('_')[1]);
+      let inserted = false;
+      for(const r of allRows) {
+        if(parseInt(r.dataset.id.split('_')[1]) > origIdx) {
+          bodyMain.insertBefore(tr, r);
+          inserted = true;
+          break;
+        }
+      }
+      if(!inserted) bodyMain.appendChild(tr);
+    } else {
+      // Déplacer vers l'accordéon
+      tr.classList.add('suivi-row', 'done');
+      bodySuivi.appendChild(tr);
+    }
+    updateSuivi();
+  } else {
+    doneState[id] = !doneState[id];
+    if(doneState[id]) tr.classList.add('done');
+    else tr.classList.remove('done');
+  }
+  updateStats();
+}
+
+function updateSuivi() {
+  const count = document.querySelectorAll('#body-suivi tr').length;
+  const accordion = document.getElementById('suivi-accordion');
+  if(accordion) accordion.style.display = count > 0 ? 'block' : 'none';
+  const countEl = document.getElementById('suivi-count');
+  if(countEl) countEl.textContent = count + ' appartement' + (count > 1 ? 's' : '');
+}
+
+function toggleAccordion() {
+  const body = document.getElementById('suivi-accordion-body');
+  const chevron = document.getElementById('suivi-chevron');
+  if(body) body.classList.toggle('open');
+  if(chevron) chevron.classList.toggle('open');
+}
+
+function updateStats() {
+  const allRows = document.querySelectorAll('#body-cleaning tr, #body-checkin tr');
+  const cleaningRows = document.querySelectorAll('#body-cleaning tr');
+  const checkinRows = document.querySelectorAll('#body-checkin tr');
+  const cleaningDone = [...cleaningRows].filter(r => r.classList.contains('done')).length;
+  const checkinDone = [...checkinRows].filter(r => r.classList.contains('done')).length;
+  const inspectedCount = [...allRows].filter(r => r.classList.contains('inspected')).length;
+  document.getElementById('stat-cleaning-done').textContent = cleaningDone;
+  document.getElementById('stat-checkin-done').textContent = checkinDone;
+  if(document.getElementById('stat-inspected')) document.getElementById('stat-inspected').textContent = inspectedCount;
+  const allDone = cleaningDone === cleaningRows.length && checkinDone === checkinRows.length && allRows.length > 0;
+  document.getElementById('stat-all').style.display = allDone ? 'flex' : 'none';
+}
+
+function resetApp() {
+  dataCheckin = [];
+  dataCleaning = [];
+  dataForms = [];
+  doneState = {};
+  cleaningState = {};
+  knownInspections = new Set();
+  inspectionMap = {};
+  document.getElementById('file-checkin').value = '';
+  document.getElementById('file-cleaning').value = '';
+  document.getElementById('fn-checkin').textContent = '';
+  document.getElementById('fn-cleaning').textContent = '';
+  document.getElementById('zone-checkin').classList.remove('loaded');
+  document.getElementById('zone-cleaning').classList.remove('loaded');
+  document.getElementById('btn-generate').classList.remove('active');
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ──────────────────────────────────────────────
+// PDF GENERATION
+// ──────────────────────────────────────────────
+
+async function generateAndDownloadPDF(dateKey) {
+  try {
+    const { jsPDF } = window.jspdf;
+    const dashboard = document.getElementById('dashboard');
+    showInfoToast('Génération du PDF...');
+
+    const canvas = await html2canvas(dashboard, {
+      scale: 1.5,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#f5f0e8',
+      windowWidth: 1400
+    });
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const ratio = canvas.height / canvas.width;
+    const imgH = pageW * ratio;
+
+    let y = 0;
+    while(y < imgH) {
+      if(y > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, -y, pageW, imgH);
+      y += pageH;
+    }
+
+    pdf.save(`duve-planning-${dateKey}.pdf`);
+    showInfoToast('✓ PDF téléchargé');
+  } catch(err) {
+    console.error('PDF error:', err);
+    showInfoToast('Erreur PDF : ' + err.message);
+  }
+}
+
+
+
+// ──────────────────────────────────────────────
+// TOASTS
+// ──────────────────────────────────────────────
+
+function showToast(insp) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  let body = '';
+  if(insp.gouvernante) body += `Gouvernante : <strong>${esc(insp.gouvernante)}</strong><br>`;
+  if(insp.residence) body += `Résidence : ${esc(insp.residence)}<br>`;
+  body += `<span style="color:#7ecfa0;">✅ Appartement inspecté</span>`;
+  toast.innerHTML = `<div class="toast-title">✅ Apt. ${esc(insp.aptNum)} inspecté</div><div class="toast-body">${body}</div>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 6000);
+}
+
+function showInfoToast(msg) {
+  const container = document.getElementById('toast-container');
+  if(!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.borderLeftColor = '#b8952a';
+  toast.innerHTML = `<div class="toast-body" style="color:var(--paper);">${esc(msg)}</div>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// ──────────────────────────────────────────────
+// PDF DOWNLOAD
+// ──────────────────────────────────────────────
+
+
+// ──────────────────────────────────────────────
+// ARCHIVE
+// ──────────────────────────────────────────────
+
+const ARCHIVE_KEY = 'duve_archives';
+
+function loadArchives() {
+  try { return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveArchives(archives) {
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives));
+}
+
+function archiveDay() {
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const dateKey = today.toISOString().slice(0, 10);
+
+  // Collect stats
+  const cleaningRows = document.querySelectorAll('#body-cleaning tr');
+  const checkinRows  = document.querySelectorAll('#body-checkin tr');
+  const cleaningDone = [...cleaningRows].filter(r => r.classList.contains('done')).length;
+  const checkinDone  = [...checkinRows].filter(r => r.classList.contains('done')).length;
+  const inspected    = document.getElementById('stat-inspected').textContent;
+  const lateCount    = [...cleaningRows].filter(r => r.classList.contains('late-cleaning')).length;
+
+  // Capture HTML snapshot
+  const dashboardEl = document.getElementById('dashboard');
+  const styles = Array.from(document.querySelectorAll('style')).map(s => s.outerHTML).join('');
+  const fonts = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.outerHTML).join('');
+  const extraStyle = '<sty' + 'le>#upload-screen{display:none!important}#dashboard{display:block!important}.top-bar-actions{display:none}body{background:#f5f0e8}.archive-banner{background:#1a1a18;color:#f5f0e8;padding:0.5rem 2rem;font-family:monospace;font-size:0.72rem;text-transform:uppercase}</sty' + 'le>';
+  const snapshot = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">' + fonts + styles + extraStyle + '</head><body><div class="archive-banner">📦 Archive — ' + dateStr.charAt(0).toUpperCase() + dateStr.slice(1) + '</div>' + dashboardEl.outerHTML + '</body></html>';
+
+  const archives = loadArchives();
+  const existing = archives.findIndex(a => a.dateKey === dateKey);
+  const entry = {
+    dateKey,
+    dateStr: dateStr.charAt(0).toUpperCase() + dateStr.slice(1),
+    cleaningTotal: cleaningRows.length,
+    cleaningDone,
+    checkinTotal: checkinRows.length,
+    checkinDone,
+    inspected: parseInt(inspected) || 0,
+    lateCount,
+    archivedAt: today.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+    snapshot
+  };
+
+  if(existing >= 0) archives[existing] = entry;
+  else archives.unshift(entry);
+  saveArchives(archives);
+  renderArchiveList();
+
+  showInfoToast('Journée archivée ✓');
+  generateAndDownloadPDF(dateKey);
+}
+
+function previewSnapshot(dateKey) {
+  const archives = loadArchives();
+  const entry = archives.find(a => a.dateKey === dateKey);
+  if(!entry || !entry.snapshot) return;
+  const blob = new Blob([entry.snapshot], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  document.getElementById('preview-iframe').src = url;
+  document.getElementById('preview-title').textContent = '📦 ' + entry.dateStr;
+  document.getElementById('preview-modal').style.display = 'flex';
+  // Store url to revoke later
+  document.getElementById('preview-modal').dataset.blobUrl = url;
+}
+
+function closePreview() {
+  const modal = document.getElementById('preview-modal');
+  const url = modal.dataset.blobUrl;
+  if(url) URL.revokeObjectURL(url);
+  document.getElementById('preview-iframe').src = 'about:blank';
+  modal.style.display = 'none';
+}
+
+function downloadSnapshot(dateKey) {
+  const archives = loadArchives();
+  const entry = archives.find(a => a.dateKey === dateKey);
+  if(!entry || !entry.snapshot) return;
+  const blob = new Blob([entry.snapshot], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `duve-planning-${dateKey}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openArchivePanel() {
+  renderArchiveList();
+  document.getElementById('archive-panel').style.display = 'flex';
+}
+
+function closeArchive() {
+  document.getElementById('archive-panel').style.display = 'none';
+}
+
+function renderArchiveList() {
+  const archives = loadArchives();
+  const list = document.getElementById('archive-list');
+  const empty = document.getElementById('archive-empty');
+
+  if(archives.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Remove existing entries (keep empty div)
+  list.querySelectorAll('.archive-entry').forEach(e => e.remove());
+
+  archives.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'archive-entry';
+    el.style.cssText = 'border-bottom:1px solid #e8e0d0; padding:0.85rem 0; display:flex; flex-direction:column; gap:0.4rem;';
+
+    const allOk = a.cleaningDone === a.cleaningTotal && a.checkinDone === a.checkinTotal;
+    el.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="font-family:'Fraunces',serif; font-size:1rem; font-weight:600;">${esc(a.dateStr)}</div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:0.68rem; color:var(--muted);">archivé à ${esc(a.archivedAt)}</div>
+          <button style="background:transparent; color:var(--ink); border:1px solid #d0c8b8; padding:0.3rem 0.65rem; font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.06em; text-transform:uppercase; border-radius:2px; cursor:pointer; margin-right:0.4rem;" onclick="previewSnapshot('${a.dateKey}')">👁 Voir</button><button style="background:var(--ink); color:var(--paper); border:none; padding:0.3rem 0.65rem; font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.06em; text-transform:uppercase; border-radius:2px; cursor:pointer;" onclick="downloadSnapshot('${a.dateKey}')">⬇ Télécharger</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:1.2rem; font-size:0.72rem; flex-wrap:wrap; margin-top:0.2rem;">
+        <span style="color:var(--gold);">🧹 ${a.cleaningDone}/${a.cleaningTotal} ménages</span>
+        <span style="color:var(--checkin-border);">🛬 ${a.checkinDone}/${a.checkinTotal} arrivées</span>
+        <span style="color:#2d6e47;">✅ ${a.inspected} inspectés</span>
+        ${a.lateCount > 0 ? `<span style="color:#c0392b;">⚠️ ${a.lateCount} retard${a.lateCount>1?'s':''}</span>` : ''}
+        ${allOk ? '<span style="color:#3a7a52; font-weight:500;">✓ Journée complète</span>' : ''}
+      </div>
+    `;
+    list.appendChild(el);
+  });
+}
+
+// Close archive panel on backdrop click
+document.getElementById('archive-panel').addEventListener('click', function(e) {
+  if(e.target === this) closeArchive();
+});
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+  if(e.target === this) closePreview();
+});
+
+</script>
+</body>
+</html>
